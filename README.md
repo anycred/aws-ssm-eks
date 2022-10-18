@@ -75,8 +75,8 @@ The kubectl command output.
 ```
 ### Set BASTION_ID
 ```yaml
-  - name: Running ssm session
-    uses: gkirok/aws-ssm-eks@v1
+  - name: List pods
+    uses: gkirok/aws-ssm-eks@v2
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -84,4 +84,5 @@ The kubectl command output.
       CLUSTER_NAME: my-cluster
       BASTION_ID: id-98h3tboagua94gboa
       SSM_PORT: 8443
+      kubectl_cmd: "get pods -A"
 ```
