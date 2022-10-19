@@ -2,7 +2,7 @@
 PORT=''
 refused=0
 
-function rand_port() {
+rand_port() {
   if [ -n "${SSM_PORT:-}" ]; then
     PORT=$SSM_PORT
   else
@@ -28,11 +28,12 @@ echo "::debug::aws version"
 echo "::debug::$(aws --version)"
 
 echo "::notice::Attempting to update kubeconfig for aws"
-echo $CLUSTER_NAME
+echo "$CLUSTER_NAME"
 
 if [ -n "${BASTION_NAME}" ]; then
   echo "::debug::Bastion: $BASTION_NAME";
-  export INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=${BASTION_NAME}" "Name=instance-state-code,Values=16" --output text --query 'Reservations[*].Instances[*].InstanceId')
+  INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=${BASTION_NAME}" "Name=instance-state-code,Values=16" --output text --query 'Reservations[*].Instances[*].InstanceId')
+  export INSTANCE_ID
 elif [ -n "${BASTION_ID}" ]; then
   export INSTANCE_ID=$BASTION_ID
 else
@@ -41,7 +42,7 @@ else
 fi
 echo "::debug::InstanceId: $INSTANCE_ID";
 
-CLUSTER=$(aws eks describe-cluster --name $CLUSTER_NAME 2> /tmp/stderr)
+CLUSTER=$(aws eks describe-cluster --name "$CLUSTER_NAME" 2> /tmp/stderr)
 ret=$?
 if [ $ret -ne 0 ]; then
   echo "Error: aws eks describe-cluster"
@@ -90,12 +91,12 @@ do
     echo "::debug::kubectl ret: $kubectl_ret"
 
     echo "::notice::Terminate session"
-    aws ssm terminate-session --session-id $SESSION_ID
+    aws ssm terminate-session --session-id "$SESSION_ID"
 
     if [ $kubectl_ret -ne 0 ]; then
       echo "Error: kubectl"
       cat /tmp/stderr
-      echo ::set-output name=cmd-out::"$(cat /tmp/stderr)"
+      echo "{cmd-out}=$(cat /tmp/stderr)" >> "$GITHUB_OUTPUT"
 
       if grep -q "was refused" /tmp/stderr
       then
@@ -112,17 +113,19 @@ do
 
   elif [ -n "${cmds}" ]; then
     echo "::notice::Running bash commands"
-    output=$( bash -c "$cmds" 2> /tmp/stderr)
+    echo "$cmds" >> /tmp/run_cmds.sh
+    output=$(sh /tmp/run_cmds.sh 2> /tmp/stderr)
     cmds_ret=$?
     echo "::debug::cmds ret: $cmds_ret"
 
     echo "::notice::Terminate session"
-    aws ssm terminate-session --session-id $SESSION_ID
+    aws ssm terminate-session --session-id "$SESSION_ID"
 
     if [ $cmds_ret -ne 0 ]; then
       echo "Error: cmds"
       cat /tmp/stderr
-      echo ::set-output name=cmd-out::"$(cat /tmp/stderr)"
+      echo "{cmd-out}=$(cat /tmp/stderr)" >> "$GITHUB_OUTPUT"
+
 
       if grep -q "was refused" /tmp/stderr
       then
@@ -142,4 +145,4 @@ do
   fi
 
 done
-echo ::set-output name=cmd-out::"${output}"
+echo "{cmd-out}=${output}" >> "$GITHUB_OUTPUT"
