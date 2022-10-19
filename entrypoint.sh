@@ -115,7 +115,8 @@ do
     echo "::notice::Running bash commands"
     echo "$cmds" >> /tmp/run_cmds.sh
     cat /tmp/run_cmds.sh
-    output=$(sh /tmp/run_cmds.sh 2> /tmp/stderr)
+    output=$(sh /tmp/run_cmds.sh)
+    #output=$(sh /tmp/run_cmds.sh 2> /tmp/stderr)
     cmds_ret=$?
     echo "::debug::cmds ret: $cmds_ret"
 
