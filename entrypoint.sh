@@ -2,7 +2,7 @@
 PORT=''
 refused=0
 
-function rand_port() {
+rand_port() {
   if [ -n "${SSM_PORT:-}" ]; then
     PORT=$SSM_PORT
   else
@@ -28,11 +28,12 @@ echo "::debug::aws version"
 echo "::debug::$(aws --version)"
 
 echo "::notice::Attempting to update kubeconfig for aws"
-echo $CLUSTER_NAME
+echo "$CLUSTER_NAME"
 
 if [ -n "${BASTION_NAME}" ]; then
   echo "::debug::Bastion: $BASTION_NAME";
-  export INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=${BASTION_NAME}" "Name=instance-state-code,Values=16" --output text --query 'Reservations[*].Instances[*].InstanceId')
+  INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=${BASTION_NAME}" "Name=instance-state-code,Values=16" --output text --query 'Reservations[*].Instances[*].InstanceId')
+  export INSTANCE_ID
 elif [ -n "${BASTION_ID}" ]; then
   export INSTANCE_ID=$BASTION_ID
 else
@@ -41,7 +42,7 @@ else
 fi
 echo "::debug::InstanceId: $INSTANCE_ID";
 
-CLUSTER=$(aws eks describe-cluster --name $CLUSTER_NAME 2> /tmp/stderr)
+CLUSTER=$(aws eks describe-cluster --name "$CLUSTER_NAME" 2> /tmp/stderr)
 ret=$?
 if [ $ret -ne 0 ]; then
   echo "Error: aws eks describe-cluster"
@@ -82,32 +83,66 @@ do
       --query 'Sessions[].{SessionId:SessionId,StartDate:StartDate} | reverse(sort_by(@, &StartDate)) | [0].SessionId' --output text)
   sleep 3
 
-  echo "::notice::Running kubectl"
-  runme="kubectl $kubectl_cmd"
-  output=$( bash -c "$runme" 2> /tmp/stderr)
-  kubectl_ret=$?
-  echo "::debug::kubectl ret: $kubectl_ret"
+  if [ -n "${kubectl_cmd}" ]; then
+    echo "::notice::Running kubectl"
+    runme="kubectl $kubectl_cmd"
+    output=$( bash -c "$runme" 2> /tmp/stderr)
+    kubectl_ret=$?
+    echo "::debug::kubectl ret: $kubectl_ret"
 
-  echo "::notice::Terminate session"
-  aws ssm terminate-session --session-id $SESSION_ID
+    echo "::notice::Terminate session"
+    aws ssm terminate-session --session-id "$SESSION_ID"
 
-  if [ $kubectl_ret -ne 0 ]; then
-    echo "Error: kubectl"
-    cat /tmp/stderr
-    echo ::set-output name=cmd-out::"$(cat /tmp/stderr)"
+    if [ $kubectl_ret -ne 0 ]; then
+      echo "Error: kubectl"
+      cat /tmp/stderr
+      echo "{cmd-out}=$(cat /tmp/stderr)" >> "$GITHUB_OUTPUT"
 
-    if grep -q "was refused" /tmp/stderr
-    then
-      refused=1
-    else
-      refused=0
+      if grep -q "was refused" /tmp/stderr
+      then
+        refused=1
+      else
+        refused=0
+      fi
     fi
-  fi
+    echo "::endgroup::"
 
-  echo "::endgroup::"
+    if [ $kubectl_ret -eq 0 ] || [ $refused -eq 0 ]; then
+      break
+    fi
 
-  if [ $kubectl_ret -eq 0 ] || [ $refused -eq 0 ]; then
+  elif [ -n "${cmds}" ]; then
+    echo "::notice::Running bash commands"
+    echo "$cmds" >> /tmp/run_cmds.sh
+    output=$(sh /tmp/run_cmds.sh 2> /tmp/stderr)
+    cmds_ret=$?
+    echo "::debug::cmds ret: $cmds_ret"
+
+    echo "::notice::Terminate session"
+    aws ssm terminate-session --session-id "$SESSION_ID"
+
+    if [ $cmds_ret -ne 0 ]; then
+      echo "Error: cmds"
+      cat /tmp/stderr
+      echo "{cmd-out}=$(cat /tmp/stderr)" >> "$GITHUB_OUTPUT"
+
+
+      if grep -q "was refused" /tmp/stderr
+      then
+        refused=1
+      else
+        refused=0
+      fi
+    fi
+    echo "::endgroup::"
+
+    if [ $cmds_ret -eq 0 ] || [ $refused -eq 0 ]; then
+      break
+    fi
+  else
+    echo "::notice::Empty commands"
     break
   fi
+
 done
-echo ::set-output name=cmd-out::"${output}"
+echo "{cmd-out}=${output}" >> "$GITHUB_OUTPUT"
