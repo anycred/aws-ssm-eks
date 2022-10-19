@@ -96,7 +96,7 @@ do
     if [ $kubectl_ret -ne 0 ]; then
       echo "Error: kubectl"
       cat /tmp/stderr
-      echo "{cmd-out}=$(cat /tmp/stderr)" >> "$GITHUB_OUTPUT"
+      echo "{cmd-out}=$(cat /tmp/stderr)" >> $GITHUB_OUTPUT
 
       if grep -q "was refused" /tmp/stderr
       then
@@ -114,6 +114,7 @@ do
   elif [ -n "${cmds}" ]; then
     echo "::notice::Running bash commands"
     echo "$cmds" >> /tmp/run_cmds.sh
+    cat /tmp/run_cmds.sh
     output=$(sh /tmp/run_cmds.sh 2> /tmp/stderr)
     cmds_ret=$?
     echo "::debug::cmds ret: $cmds_ret"
@@ -124,8 +125,7 @@ do
     if [ $cmds_ret -ne 0 ]; then
       echo "Error: cmds"
       cat /tmp/stderr
-      echo "{cmd-out}=$(cat /tmp/stderr)" >> "$GITHUB_OUTPUT"
-
+      echo "{cmd-out}=$(cat /tmp/stderr)" >> $GITHUB_OUTPUT
 
       if grep -q "was refused" /tmp/stderr
       then
@@ -145,4 +145,4 @@ do
   fi
 
 done
-echo "{cmd-out}=${output}" >> "$GITHUB_OUTPUT"
+echo "{cmd-out}=$output" >> $GITHUB_OUTPUT
