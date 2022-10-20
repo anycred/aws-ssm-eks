@@ -117,7 +117,9 @@ for i in 1 2 3; do
   echo "::endgroup::"
 
   if [ $ret -eq 0 ] || [ $refused -eq 0 ]; then
-    break
+    echo "::notice::Finished Successfully"
+    exit 0
   fi
 done
-echo "::notice::Finished Successfully"
+echo "::error::Failed to connect to cluster"
+exit 1
