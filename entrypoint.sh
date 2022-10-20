@@ -2,7 +2,7 @@
 PORT=''
 refused=0
 
-function rand_port() {
+rand_port() {
   if [ -n "${SSM_PORT:-}" ]; then
     PORT=$SSM_PORT
   else
@@ -28,20 +28,21 @@ echo "::debug::aws version"
 echo "::debug::$(aws --version)"
 
 echo "::notice::Attempting to update kubeconfig for aws"
-echo $CLUSTER_NAME
+echo "$CLUSTER_NAME"
 
 if [ -n "${BASTION_NAME}" ]; then
-  echo "::debug::Bastion: $BASTION_NAME";
-  export INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=${BASTION_NAME}" "Name=instance-state-code,Values=16" --output text --query 'Reservations[*].Instances[*].InstanceId')
+  echo "::debug::Bastion: $BASTION_NAME"
+  INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=${BASTION_NAME}" "Name=instance-state-code,Values=16" --output text --query 'Reservations[*].Instances[*].InstanceId')
+  export INSTANCE_ID
 elif [ -n "${BASTION_ID}" ]; then
   export INSTANCE_ID=$BASTION_ID
 else
   echo "Required: BASTION_NAME or BASTION_ID"
   exit 1
 fi
-echo "::debug::InstanceId: $INSTANCE_ID";
+echo "::debug::InstanceId: $INSTANCE_ID"
 
-CLUSTER=$(aws eks describe-cluster --name $CLUSTER_NAME 2> /tmp/stderr)
+CLUSTER=$(aws eks describe-cluster --name "$CLUSTER_NAME" 2>/tmp/stderr)
 ret=$?
 if [ $ret -ne 0 ]; then
   echo "Error: aws eks describe-cluster"
@@ -49,18 +50,17 @@ if [ $ret -ne 0 ]; then
   exit $ret
 fi
 CLUSTER_API=$(echo "${CLUSTER}" | jq -r '.cluster.endpoint' | awk -F/ '{print $3}')
-echo "::debug::Cluster API: $CLUSTER_API";
+echo "::debug::Cluster API: $CLUSTER_API"
 
 echo "::notice::Update /etc/hosts"
 sh -c "echo '127.0.0.1 ${CLUSTER_API}' >> /etc/hosts"
 echo "::endgroup::"
-for i in 1 2 3
-do
+for i in 1 2 3; do
   echo "::group::aws-ssm-eks $i attempt"
   rand_port
   echo $PORT
 
-  EKS_NAME=$(aws eks update-kubeconfig --name "${CLUSTER_NAME}" 2> /tmp/stderr);
+  EKS_NAME=$(aws eks update-kubeconfig --name "${CLUSTER_NAME}" 2>/tmp/stderr)
   ret=$?
   if [ $ret -ne 0 ]; then
     echo "Error: aws eks update-kubeconfig"
@@ -78,68 +78,46 @@ do
   echo "::notice::Get session id"
   MY_IDENTITY=$(aws sts get-caller-identity --query 'Arn' --output text)
   SESSION_ID=$(aws ssm describe-sessions --state "Active" \
-      --filters "key=Owner,value=$MY_IDENTITY" "key=Target,value=$INSTANCE_ID" "key=Status,value=Connected" \
-      --query 'Sessions[].{SessionId:SessionId,StartDate:StartDate} | reverse(sort_by(@, &StartDate)) | [0].SessionId' --output text)
+    --filters "key=Owner,value=$MY_IDENTITY" "key=Target,value=$INSTANCE_ID" "key=Status,value=Connected" \
+    --query 'Sessions[].{SessionId:SessionId,StartDate:StartDate} | reverse(sort_by(@, &StartDate)) | [0].SessionId' --output text)
   sleep 3
 
   if [ -n "${kubectl_cmd}" ]; then
     echo "::notice::Running kubectl"
     runme="kubectl $kubectl_cmd"
-    output=$( bash -c "$runme" 2> /tmp/stderr)
-    kubectl_ret=$?
-    echo "::debug::kubectl ret: $kubectl_ret"
+    bash -c "$runme" 2>/tmp/stderr
+    ret=$?
+    echo "::debug::kubectl ret: $ret"
 
-    echo "::notice::Terminate session"
-    aws ssm terminate-session --session-id $SESSION_ID
-
-    if [ $kubectl_ret -ne 0 ]; then
-      echo "Error: kubectl"
-      cat /tmp/stderr
-      echo ::set-output name=cmd-out::"$(cat /tmp/stderr)"
-
-      if grep -q "was refused" /tmp/stderr
-      then
-        refused=1
-      else
-        refused=0
-      fi
-    fi
-    echo "::endgroup::"
-
-    if [ $kubectl_ret -eq 0 ] || [ $refused -eq 0 ]; then
-      break
-    fi
-
-  elif [ -n "${cmds}" ]; then
+  elif [ -n "${run}" ]; then
     echo "::notice::Running bash commands"
-    output=$( bash -c "$cmds" 2> /tmp/stderr)
-    cmds_ret=$?
-    echo "::debug::cmds ret: $cmds_ret"
-
-    echo "::notice::Terminate session"
-    aws ssm terminate-session --session-id $SESSION_ID
-
-    if [ $cmds_ret -ne 0 ]; then
-      echo "Error: cmds"
-      cat /tmp/stderr
-      echo ::set-output name=cmd-out::"$(cat /tmp/stderr)"
-
-      if grep -q "was refused" /tmp/stderr
-      then
-        refused=1
-      else
-        refused=0
-      fi
-    fi
-    echo "::endgroup::"
-
-    if [ $cmds_ret -eq 0 ] || [ $refused -eq 0 ]; then
-      break
-    fi
+    echo "$run" >>/tmp/run_cmds.sh
+    bash /tmp/run_cmds.sh 2>/tmp/stderr
+    ret=$?
+    echo "::debug::bash cmds ret: $ret"
   else
     echo "::notice::Empty commands"
-    break
+    exit 1
   fi
 
+  echo "::notice::Terminate session"
+  aws ssm terminate-session --session-id "$SESSION_ID"
+
+  if [ $ret -ne 0 ]; then
+    echo "Error executing commands"
+    cat /tmp/stderr
+    echo "error_msg=$(cat /tmp/stderr)" >>$GITHUB_OUTPUT
+
+    if grep -q "was refused" /tmp/stderr; then
+      refused=1
+    else
+      refused=0
+    fi
+  fi
+  echo "::endgroup::"
+
+  if [ $ret -eq 0 ] || [ $refused -eq 0 ]; then
+    break
+  fi
 done
-echo ::set-output name=cmd-out::"${output}"
+echo "::notice::Finished Successfully"

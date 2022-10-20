@@ -41,23 +41,23 @@ This action connects to eks with private endpoint using ssm session on bastion s
 
 ## Inputs
 
-| Input | Description | Default |
-| ----- | ----------- | ------- |
-| CLUSTER_NAME | The name of eks cluster. | **Required** |
-| BASTION_NAME | The bastion instance name | **Required** or BASTION_ID |
-| BASTION_ID | The bastion instance id | **Required** or BASTION_NAME |
-| AWS_ACCESS_KEY_ID |  | None |
+| Input                 | Description | Default |
+|-----------------------| ----------- | ------- |
+| CLUSTER_NAME          | The name of eks cluster. | **Required** |
+| BASTION_NAME          | The bastion instance name | **Required** or BASTION_ID |
+| BASTION_ID            | The bastion instance id | **Required** or BASTION_NAME |
+| AWS_ACCESS_KEY_ID     |  | None |
 | AWS_SECRET_ACCESS_KEY |  | None |
-| AWS_REGION |  | None |
-| SSM_PORT | SSM local port | None |
-|kubectl_cmd|The arguments that you want to pass through to the kubectl command| |
-|cmds| Bash script commands to run on cluster| |
+| AWS_REGION            |  | None |
+| SSM_PORT              | SSM local port | None |
+| kubectl_cmd           |The arguments that you want to pass through to the kubectl command| |
+| run                   | Bash script commands to run on cluster| |
 
 ## Outputs
 
 ## `cmd output`
 
-The kubectl command / cmds  output.
+The kubectl command / run  output.
 
 ## Example usage
 ```yaml
