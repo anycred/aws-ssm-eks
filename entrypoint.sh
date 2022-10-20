@@ -85,14 +85,14 @@ for i in 1 2 3; do
   if [ -n "${kubectl_cmd}" ]; then
     echo "::notice::Running kubectl"
     runme="kubectl $kubectl_cmd"
-    output=$(bash -c "$runme" 2>/tmp/stderr)
+    bash -c "$runme" 2>/tmp/stderr
     ret=$?
     echo "::debug::kubectl ret: $ret"
 
   elif [ -n "${cmds}" ]; then
     echo "::notice::Running bash commands"
     echo "$cmds" >>/tmp/run_cmds.sh
-    output=$(bash /tmp/run_cmds.sh 2>/tmp/stderr)
+    bash /tmp/run_cmds.sh 2>/tmp/stderr
     ret=$?
     echo "::debug::bash cmds ret: $ret"
   else
@@ -117,8 +117,7 @@ for i in 1 2 3; do
   echo "::endgroup::"
 
   if [ $ret -eq 0 ] || [ $refused -eq 0 ]; then
-    echo "::notice::Finished Successfully"
     break
   fi
 done
-echo "output=$output" >>$GITHUB_OUTPUT
+echo "::notice::Finished Successfully"
