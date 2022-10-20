@@ -92,7 +92,6 @@ for i in 1 2 3; do
   elif [ -n "${cmds}" ]; then
     echo "::notice::Running bash commands"
     echo "$cmds" >>/tmp/run_cmds.sh
-    cat /tmp/run_cmds.sh
     output=$(bash /tmp/run_cmds.sh 2>/tmp/stderr)
     ret=$?
     echo "::debug::bash cmds ret: $ret"
@@ -107,7 +106,7 @@ for i in 1 2 3; do
   if [ $ret -ne 0 ]; then
     echo "Error executing commands"
     cat /tmp/stderr
-    echo "{output}=$(cat /tmp/stderr)" >>$GITHUB_OUTPUT
+    echo "error_msg=$(cat /tmp/stderr)" >>$GITHUB_OUTPUT
 
     if grep -q "was refused" /tmp/stderr; then
       refused=1
@@ -118,7 +117,8 @@ for i in 1 2 3; do
   echo "::endgroup::"
 
   if [ $ret -eq 0 ] || [ $refused -eq 0 ]; then
+    echo "::notice::Finished Successfully"
     break
   fi
 done
-echo "{output}=$output" >>$GITHUB_OUTPUT
+echo "output=$output" >>$GITHUB_OUTPUT
