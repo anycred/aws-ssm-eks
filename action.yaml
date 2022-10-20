@@ -29,9 +29,6 @@ inputs:
   run:
     description: Bash script commands to run on cluster
     required: false
-outputs:
-  cmd-out:
-    description: The output of the aws ssm command
 runs:
   using: 'docker'
   image: 'Dockerfile'
