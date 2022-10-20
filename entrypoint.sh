@@ -89,9 +89,9 @@ for i in 1 2 3; do
     ret=$?
     echo "::debug::kubectl ret: $ret"
 
-  elif [ -n "${cmds}" ]; then
+  elif [ -n "${run}" ]; then
     echo "::notice::Running bash commands"
-    echo "$cmds" >>/tmp/run_cmds.sh
+    echo "$run" >>/tmp/run_cmds.sh
     bash /tmp/run_cmds.sh 2>/tmp/stderr
     ret=$?
     echo "::debug::bash cmds ret: $ret"
