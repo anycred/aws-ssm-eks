@@ -1,8 +1,7 @@
-#!/bin/sh
+#!/bin/bash
 PORT=''
 refused=0
-
-rand_port() {
+rand_port(){
   if [ -n "${SSM_PORT:-}" ]; then
     PORT=$SSM_PORT
   else
@@ -10,7 +9,6 @@ rand_port() {
   fi
   echo "::debug::Port: $PORT"
 }
-
 echo "::group::aws-ssm-eks init"
 if [ -n "${AWS_ACCESS_KEY_ID:-}" ]; then
   export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
