@@ -35,7 +35,7 @@ if [ -n "${BASTION_NAME}" ]; then
 elif [ -n "${BASTION_ID}" ]; then
   export INSTANCE_ID=$BASTION_ID
 else
-  echo "Required: BASTION_NAME or BASTION_ID"
+  echo "::error::Required: BASTION_NAME or BASTION_ID"
   exit 1
 fi
 echo "::debug::InstanceId: $INSTANCE_ID"
@@ -43,7 +43,7 @@ echo "::debug::InstanceId: $INSTANCE_ID"
 CLUSTER=$(aws eks describe-cluster --name "$CLUSTER_NAME" 2>/tmp/stderr)
 ret=$?
 if [ $ret -ne 0 ]; then
-  echo "Error: aws eks describe-cluster"
+  echo "::error::Error: aws eks describe-cluster"
   cat /tmp/stderr
   exit $ret
 fi
@@ -60,7 +60,7 @@ echo $PORT
 EKS_NAME=$(aws eks update-kubeconfig --name "${CLUSTER_NAME}" 2>/tmp/stderr)
 ret=$?
 if [ $ret -ne 0 ]; then
-  echo "Error: aws eks update-kubeconfig"
+  echo "::error::Error: aws eks update-kubeconfig"
   cat /tmp/stderr
   exit $ret
 fi
@@ -86,7 +86,7 @@ if [ -n "${run}" ]; then
   ret=$?
   echo "::debug::bash cmds ret: $ret"
 else
-  echo "::notice::Empty commands"
+  echo "::error::Empty commands"
   exit 1
 fi
 
@@ -95,14 +95,13 @@ aws ssm terminate-session --session-id "$SESSION_ID"
 echo "::endgroup::"
 
 if [ $ret -ne 0 ]; then
-  echo "Error executing commands"
+  echo "::error::Error executing commands"
   cat /tmp/stderr
   echo "error_msg=$(cat /tmp/stderr)" >>$GITHUB_OUTPUT
+  exit 1
 fi
 
 if [ $ret -eq 0 ]; then
   echo "::notice::Finished Successfully"
-  exit 0
 fi
-echo "::error::Failed to connect to cluster"
-exit 1
+exit 0
