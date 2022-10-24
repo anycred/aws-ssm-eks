@@ -88,3 +88,8 @@ The kubectl command / run  output.
       SSM_PORT: 8443
       kubectl_cmd: "get pods -A"
 ```
+
+### Upload to GitHub Container Registry
+1. [Login to GHCR](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
+2. docker push ghcr.io/anycred/aws-ssm-eks:latest
+3. See it [here](https://github.com/orgs/anycred/packages/container/package/aws-ssm-eks)

@@ -1,5 +1,5 @@
 # Container image that runs your code
-FROM acmedeepcred/python3.10-aws_cli-kubectl:v1.0.0
+FROM ghcr.io/anycred/aws-ssm-eks:latest
 
 # Copies your code file from your action repository to the filesystem path `/` of the container
 COPY entrypoint.sh /entrypoint.sh
