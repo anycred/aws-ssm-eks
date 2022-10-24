@@ -102,5 +102,8 @@ fi
 
 if [ $ret -eq 0 ]; then
   echo "::notice::Finished Successfully"
+  exit 0
+else
+  echo "::error::Finished with errors"
+  exit 1
 fi
-exit 0
