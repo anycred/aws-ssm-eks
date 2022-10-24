@@ -97,7 +97,6 @@ echo "::endgroup::"
 if [ $ret -ne 0 ]; then
   echo "::error::Error executing commands"
   cat /tmp/stderr
-  echo "error_msg=$(cat /tmp/stderr)" >>$GITHUB_OUTPUT
   exit 1
 fi
 
