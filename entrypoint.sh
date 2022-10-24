@@ -1,8 +1,7 @@
-#!/bin/sh
+#!/bin/bash
 PORT=''
 refused=0
-
-rand_port() {
+rand_port(){
   if [ -n "${SSM_PORT:-}" ]; then
     PORT=$SSM_PORT
   else
@@ -10,7 +9,6 @@ rand_port() {
   fi
   echo "::debug::Port: $PORT"
 }
-
 echo "::group::aws-ssm-eks init"
 if [ -n "${AWS_ACCESS_KEY_ID:-}" ]; then
   export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
@@ -55,71 +53,56 @@ echo "::debug::Cluster API: $CLUSTER_API"
 echo "::notice::Update /etc/hosts"
 sh -c "echo '127.0.0.1 ${CLUSTER_API}' >> /etc/hosts"
 echo "::endgroup::"
-for i in 1 2 3; do
-  echo "::group::aws-ssm-eks $i attempt"
-  rand_port
-  echo $PORT
+echo "::group::aws-ssm-eks"
+rand_port
+echo $PORT
 
-  EKS_NAME=$(aws eks update-kubeconfig --name "${CLUSTER_NAME}" 2>/tmp/stderr)
+EKS_NAME=$(aws eks update-kubeconfig --name "${CLUSTER_NAME}" 2>/tmp/stderr)
+ret=$?
+if [ $ret -ne 0 ]; then
+  echo "Error: aws eks update-kubeconfig"
+  cat /tmp/stderr
+  exit $ret
+fi
+
+echo "::notice::Update ~/.kube/config"
+sed -i -e "s/https:\/\/$CLUSTER_API/https:\/\/$CLUSTER_API:$PORT/" ~/.kube/config
+
+echo "::notice::Starting session"
+aws ssm start-session --target ${INSTANCE_ID} --document-name AWS-StartPortForwardingSessionToRemoteHost --parameters "{\"host\": [ \"${CLUSTER_API}\" ], \"portNumber\": [ \"443\" ], \"localPortNumber\": [ \"$PORT\" ] }" &
+sleep 10
+
+echo "::notice::Get session id"
+MY_IDENTITY=$(aws sts get-caller-identity --query 'Arn' --output text)
+SESSION_ID=$(aws ssm describe-sessions --state "Active" \
+  --filters "key=Owner,value=$MY_IDENTITY" "key=Target,value=$INSTANCE_ID" "key=Status,value=Connected" \
+  --query 'Sessions[].{SessionId:SessionId,StartDate:StartDate} | reverse(sort_by(@, &StartDate)) | [0].SessionId' --output text)
+sleep 3
+
+if [ -n "${run}" ]; then
+  echo "::notice::Running bash commands"
+  echo "$run" >>/tmp/run_cmds.sh
+  bash /tmp/run_cmds.sh 2>/tmp/stderr
   ret=$?
-  if [ $ret -ne 0 ]; then
-    echo "Error: aws eks update-kubeconfig"
-    cat /tmp/stderr
-    exit $ret
-  fi
+  echo "::debug::bash cmds ret: $ret"
+else
+  echo "::notice::Empty commands"
+  exit 1
+fi
 
-  echo "::notice::Update ~/.kube/config"
-  sed -i -e "s/https:\/\/$CLUSTER_API/https:\/\/$CLUSTER_API:$PORT/" ~/.kube/config
+echo "::notice::Terminate session"
+aws ssm terminate-session --session-id "$SESSION_ID"
+echo "::endgroup::"
 
-  echo "::notice::Starting session"
-  aws ssm start-session --target ${INSTANCE_ID} --document-name AWS-StartPortForwardingSessionToRemoteHost --parameters "{\"host\": [ \"${CLUSTER_API}\" ], \"portNumber\": [ \"443\" ], \"localPortNumber\": [ \"$PORT\" ] }" &
-  sleep 10
+if [ $ret -ne 0 ]; then
+  echo "Error executing commands"
+  cat /tmp/stderr
+  echo "error_msg=$(cat /tmp/stderr)" >>$GITHUB_OUTPUT
+fi
 
-  echo "::notice::Get session id"
-  MY_IDENTITY=$(aws sts get-caller-identity --query 'Arn' --output text)
-  SESSION_ID=$(aws ssm describe-sessions --state "Active" \
-    --filters "key=Owner,value=$MY_IDENTITY" "key=Target,value=$INSTANCE_ID" "key=Status,value=Connected" \
-    --query 'Sessions[].{SessionId:SessionId,StartDate:StartDate} | reverse(sort_by(@, &StartDate)) | [0].SessionId' --output text)
-  sleep 3
-
-  if [ -n "${kubectl_cmd}" ]; then
-    echo "::notice::Running kubectl"
-    runme="kubectl $kubectl_cmd"
-    bash -c "$runme" 2>/tmp/stderr
-    ret=$?
-    echo "::debug::kubectl ret: $ret"
-
-  elif [ -n "${run}" ]; then
-    echo "::notice::Running bash commands"
-    echo "$run" >>/tmp/run_cmds.sh
-    bash /tmp/run_cmds.sh 2>/tmp/stderr
-    ret=$?
-    echo "::debug::bash cmds ret: $ret"
-  else
-    echo "::notice::Empty commands"
-    exit 1
-  fi
-
-  echo "::notice::Terminate session"
-  aws ssm terminate-session --session-id "$SESSION_ID"
-
-  if [ $ret -ne 0 ]; then
-    echo "Error executing commands"
-    cat /tmp/stderr
-    echo "error_msg=$(cat /tmp/stderr)" >>$GITHUB_OUTPUT
-
-    if grep -q "was refused" /tmp/stderr; then
-      refused=1
-    else
-      refused=0
-    fi
-  fi
-  echo "::endgroup::"
-
-  if [ $ret -eq 0 ] || [ $refused -eq 0 ]; then
-    echo "::notice::Finished Successfully"
-    exit 0
-  fi
-done
+if [ $ret -eq 0 ]; then
+  echo "::notice::Finished Successfully"
+  exit 0
+fi
 echo "::error::Failed to connect to cluster"
 exit 1
