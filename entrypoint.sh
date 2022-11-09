@@ -1,4 +1,5 @@
 #!/bin/bash
+set -x
 PORT=''
 refused=0
 rand_port(){
