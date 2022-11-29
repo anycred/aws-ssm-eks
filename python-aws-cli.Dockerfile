@@ -11,8 +11,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 # Install AWS CLI
 RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && unzip awscliv2.zip && ./aws/install && aws --version
 
-RUN pip install pytest
-
+RUN pip install pytest requests
 # Install Kubectl
 RUN curl -LO "https://dl.k8s.io/release/v1.21.9/bin/linux/amd64/kubectl" && install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
