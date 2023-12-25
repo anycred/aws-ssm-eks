@@ -31,7 +31,7 @@ echo "$CLUSTER_NAME"
 
 if [ -n "${BASTION_NAME}" ]; then
   echo "::debug::Bastion: $BASTION_NAME"
-  INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=${BASTION_NAME}" "Name=instance-state-code,Values=16" --output text --query 'Reservations[*].Instances[*].InstanceId')
+  INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=*${BASTION_NAME}*" "Name=instance-state-code,Values=16" --output text --query 'Reservations[*].Instances[*].InstanceId')
   export INSTANCE_ID
 elif [ -n "${BASTION_ID}" ]; then
   export INSTANCE_ID=$BASTION_ID
