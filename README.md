@@ -62,14 +62,14 @@ The kubectl command / run  output.
 ## Example usage
 ```yaml
   - name: Configure AWS credentials
-    uses: aws-actions/configure-aws-credentials@v1
+    uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
     with:
       aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
       aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       aws-region: ${{ env.region }}
 
   - name: List pods
-    uses: gkirok/aws-ssm-eks@v2
+    uses: gkirok/aws-ssm-eks@9c037ac58f2ac4ddfdc5d13333e98b0ff4f2e54d # v2
     env:
       CLUSTER_NAME: "my-cluster"
       BASTION_NAME: "my-bastion"
@@ -78,7 +78,7 @@ The kubectl command / run  output.
 ### Set BASTION_ID
 ```yaml
   - name: List pods
-    uses: gkirok/aws-ssm-eks@v2
+    uses: gkirok/aws-ssm-eks@9c037ac58f2ac4ddfdc5d13333e98b0ff4f2e54d # v2
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
