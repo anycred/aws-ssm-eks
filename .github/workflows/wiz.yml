@@ -18,6 +18,7 @@ jobs:
     name: 'Wiz-cli IaC Scan'
     runs-on: ubuntu-latest
     environment: wiz
+    if: ${{ github.actor != 'dependabot[bot]' }}
     permissions:
       security-events: write  # Needed to upload SARIF results to GitHub Security tab
       contents: read          # Allows the job to read repo content
