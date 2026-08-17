@@ -28,8 +28,29 @@ jobs:
         with:
           fetch-depth: 0  # Fetch full history for accurate scan results
 
+      # This repository is public, so it cannot reference BeyondTrust's internal
+      # security-scan-action directly. Check the action out with a GitHub App
+      # token and run it as a local action instead.
+      - name: Generate Github token
+        id: generate_github_token
+        uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
+        with:
+          app-id: ${{ vars.BT_DX_WIZ_APP_ID }}
+          private-key: ${{ secrets.BT_DX_WIZ_APP_PEM }}
+          owner: BeyondTrust
+          repositories: security-scan-action
+
+      - name: Checkout security-scan-action
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          repository: beyondtrust/security-scan-action
+          ref: "18a90601c1f0666981a076bd954beef2cfbed63b" # v1.2.0
+          token: ${{ steps.generate_github_token.outputs.token }}
+          path: ./security-scan-action
+          persist-credentials: false
+
       - name: Run security scan
-        uses: BeyondTrust/security-scan-action@18a90601c1f0666981a076bd954beef2cfbed63b # v1.2.0
+        uses: ./security-scan-action/
         with:
           wiz-client-id: ${{ secrets.WIZ_CLIENT_ID }}
           wiz-client-secret: ${{ secrets.WIZ_CLIENT_SECRET }}
