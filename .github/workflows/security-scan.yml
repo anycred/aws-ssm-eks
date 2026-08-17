@@ -1,5 +1,5 @@
 # Workflow name!
-name: 'wiz-cli'
+name: 'security-scan'
 
 # Events that trigger this workflow:
 # - When a pull request is opened or updated
@@ -14,8 +14,8 @@ on:
 permissions: {}
 
 jobs:
-  wiz-cli-iac-scan:
-    name: 'Wiz-cli IaC Scan'
+  security-scan:
+    name: 'BeyondTrust Security Scan'
     runs-on: ubuntu-latest
     environment: wiz
     if: ${{ github.actor != 'dependabot[bot]' }}
